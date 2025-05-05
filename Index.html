@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Stats Admin Dashboard</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.7.0/chart.min.js"></script>
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <!-- Login Screen -->
+    <div id="login-screen" class="flex flex-col items-center justify-center min-h-screen">
+        <div class="bg-white p-8 rounded-lg shadow-md w-full max-w-md">
+            <h1 class="text-2xl font-bold mb-6 text-center">User Stats Admin</h1>
+            <form id="login-form" class="space-y-4">
+                <div>
+                    <label for="username" class="block text-sm font-medium text-gray-700">Benutzername</label>
+                    <input type="text" id="username" name="username" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" required>
+                </div>
+                <div>
+                    <label for="password" class="block text-sm font-medium text-gray-700">Passwort</label>
+                    <input type="password" id="password" name="password" class="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" required>
+                </div>
+                <div>
+                    <button type="submit" class="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                        Anmelden
+                    </button>
+                </div>
+                <div id="login-error" class="text-red-500 text-sm hidden">
+                    Ungültige Anmeldedaten. Bitte versuche es erneut.
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Main Dashboard -->
+    <div id="dashboard" class="hidden">
+        <nav class="bg-indigo-600 shadow">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="flex justify-between h-16">
+                    <div class="flex">
+                        <div class="flex-shrink-0 flex items-center">
+                            <h1 class="text-white text-lg font-bold">User Stats Dashboard</h1>
+                        </div>
+                    </div>
+                    <div class="flex items-center">
+                        <button id="logout-btn" class="px-3 py-1 text-sm text-white bg-indigo-700 rounded hover:bg-indigo-800">
+                            Abmelden
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </nav>
+
+        <div class="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+            <!-- File Upload Section -->
+            <div class="mb-6 bg-white shadow overflow-hidden sm:rounded-lg p-4">
+                <h2 class="text-lg font-medium text-gray-900 mb-4">Daten Aktualisieren</h2>
+                <div class="flex items-center space-x-4">
+                    <input type="file" id="file-upload" accept=".json" class="block w-full text-sm text-gray-500
+                        file:mr-4 file:py-2 file:px-4
+                        file:rounded-md file:border-0
+                        file:text-sm file:font-semibold
+                        file:bg-indigo-50 file:text-indigo-700
+                        hover:file:bg-indigo-100">
+                    <button id="save-to-localstorage" class="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
+                        Speichern
+                    </button>
+                </div>
+                <p id="file-status" class="mt-2 text-sm text-gray-500"></p>
+            </div>
+            
+            <!-- Summary Cards -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                <div class="bg-white overflow-hidden shadow rounded-lg">
+                    <div class="px-4 py-5 sm:p-6">
+                        <dl>
+                            <dt class="text-sm font-medium text-gray-500 truncate">Gesamt Benutzer</dt>
+                            <dd id="total-users" class="mt-1 text-3xl font-semibold text-gray-900">0</dd>
+                        </dl>
+                    </div>
+                </div>
+                <div class="bg-white overflow-hidden shadow rounded-lg">
+                    <div class="px-4 py-5 sm:p-6">
+                        <dl>
+                            <dt class="text-sm font-medium text-gray-500 truncate">Einladungen von 6235934346</dt>
+                            <dd id="invites-count" class="mt-1 text-3xl font-semibold text-gray-900">0</dd>
+                        </dl>
+                    </div>
+                </div>
+                <div class="bg-white overflow-hidden shadow rounded-lg">
+                    <div class="px-4 py-5 sm:p-6">
+                        <dl>
+                            <dt class="text-sm font-medium text-gray-500 truncate">Verfügbare Tickets/Joker</dt>
+                            <dd id="available-tickets" class="mt-1 text-3xl font-semibold text-gray-900">0</dd>
+                        </dl>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Charts -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                <div class="bg-white p-6 rounded-lg shadow">
+                    <h3 class="text-lg font-medium text-gray-900 mb-4">Sprachverteilung</h3>
+                    <div class="h-64">
+                        <canvas id="language-chart"></canvas>
+                    </div>
+                </div>
+                <div class="bg-white p-6 rounded-lg shadow">
+                    <h3 class="text-lg font-medium text-gray-900 mb-4">Einladungen Analyse</h3>
+                    <div class="h-64">
+                        <canvas id="invites-chart"></canvas>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- User Table -->
+            <div class="bg-white shadow overflow-hidden sm:rounded-lg">
+                <div class="px-4 py-5 sm:px-6 flex justify-between items-center">
+                    <div>
+                        <h3 class="text-lg leading-6 font-medium text-gray-900">Benutzer Daten</h3>
+                        <p class="mt-1 max-w-2xl text-sm text-gray-500">Detaillierte Informationen über alle Benutzer</p>
+                    </div>
+                    <div class="flex items-center">
+                        <input id="search-input" type="text" placeholder="Suche..." class="px-3 py-1 border border-gray-300 rounded-md mr-2">
+                        <select id="filter-language" class="px-3 py-1 border border-gray-300 rounded-md">
+                            <option value="all">Alle Sprachen</option>
+                            <option value="en">Englisch</option>
+                            <option value="de">Deutsch</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Benutzer ID
+                                </th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Sprache
+                                </th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Joker
+                                </th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Tickets
+                                </th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Letzte Aktivität
+                                </th>
+                                <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                                    Eingeladen von
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody id="users-table-body" class="bg-white divide-y divide-gray-200">
+                            <!-- Users will be dynamically added here -->
+                        </tbody>
+                    </table>
+                </div>
+                <div class="px-4 py-3 flex items-center justify-between border-t border-gray-200 sm:px-6">
+                    <div class="flex-1 flex justify-between sm:hidden">
+                        <button id="prev-page-mobile" class="relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                            Zurück
+                        </button>
+                        <button id="next-page-mobile" class="ml-3 relative inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                            Weiter
+                        </button>
+                    </div>
+                    <div class="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
+                        <div>
+                            <p id="pagination-info" class="text-sm text-gray-700">
+                                Zeige <span id="page-start">1</span> bis <span id="page-end">10</span> von <span id="total-items">0</span> Einträgen
+                            </p>
+                        </div>
+                        <div>
+                            <nav class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
+                                <button id="prev-page" class="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">
+                                    <span class="sr-only">Zurück</span>
+                                    <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                                        <path fill-rule="evenodd" d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z" clip-rule="evenodd" />
+                                    </svg>
+                                </button>
+                                <div id="pagination-numbers" class="relative inline-flex items-center px-4 py-2 border border-gray-300 bg-white text-sm font-medium text-gray-700">
+                                    <!-- Page numbers will be added here -->
+                                </div>
+                                <button id="next-page" class="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50">
+                                    <span class="sr-only">Weiter</span>
+                                    <svg class="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                                        <path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd" />
+                                    </svg>
+                                </button>
+                            </nav>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Default admin credentials (in a real app, this would be handled server-side)
+        const adminCredentials = {
+            username: 'admin',
+            password: 'admin123'
+        };
+
+        // Sample initial data (will be replaced when file is uploaded)
+        let userData = {};
+        
+        // UI Elements
+        const loginScreen = document.getElementById('login-screen');
+        const loginForm = document.getElementById('login-form');
+        const loginError = document.getElementById('login-error');
+        const dashboard = document.getElementById('dashboard');
+        const logoutBtn = document.getElementById('logout-btn');
+        const fileUpload = document.getElementById('file-upload');
+        const saveToLocalStorage = document.getElementById('save-to-localstorage');
+        const fileStatus = document.getElementById('file-status');
+        const totalUsersElement = document.getElementById('total-users');
+        const invitesCountElement = document.getElementById('invites-count');
+        const availableTicketsElement = document.getElementById('available-tickets');
+        const usersTableBody = document.getElementById('users-table-body');
+        const searchInput = document.getElementById('search-input');
+        const filterLanguage = document.getElementById('filter-language');
+        const prevPageBtn = document.getElementById('prev-page');
+        const nextPageBtn = document.getElementById('next-page');
+        const prevPageMobileBtn = document.getElementById('prev-page-mobile');
+        const nextPageMobileBtn = document.getElementById('next-page-mobile');
+        const paginationInfo = document.getElementById('pagination-info');
+        const pageStart = document.getElementById('page-start');
+        const pageEnd = document.getElementById('page-end');
+        const totalItems = document.getElementById('total-items');
+        const paginationNumbers = document.getElementById('pagination-numbers');
+
+        // Charts
+        let languageChart;
+        let invitesChart;
+
+        // Pagination variables
+        let currentPage = 1;
+        const itemsPerPage = 10;
+        let filteredUsers = [];
+
+        // Check if there's saved user data in localStorage
+        document.addEventListener('DOMContentLoaded', function() {
+            const savedData = localStorage.getItem('userStatsData');
+            if (savedData) {
+                try {
+                    userData = JSON.parse(savedData);
+                    fileStatus.textContent = 'Gespeicherte Daten geladen.';
+                } catch (e) {
+                    console.error('Error parsing saved data:', e);
+                    fileStatus.textContent = 'Fehler beim Laden der gespeicherten Daten.';
+                }
+            }
+            
+            // Check if user is logged in
+            const isLoggedIn = sessionStorage.getItem('isLoggedIn') === 'true';
+            if (isLoggedIn) {
+                showDashboard();
+            } else {
+                showLogin();
+            }
+        });
+
+        // Login form submission
+        loginForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            
+            if (username === adminCredentials.username && password === adminCredentials.password) {
+                sessionStorage.setItem('isLoggedIn', 'true');
+                showDashboard();
+            } else {
+                loginError.classList.remove('hidden');
+            }
+        });
+
+        // Logout button
+        logoutBtn.addEventListener('click', function() {
+            sessionStorage.removeItem('isLoggedIn');
+            showLogin();
+        });
+
+        // File upload handling
+        fileUpload.addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    try {
+                        const data = JSON.parse(e.target.result);
+                        userData = data;
+                        fileStatus.textContent = 'Datei erfolgreich geladen. Klicke auf "Speichern", um die Daten zu speichern.';
+                        updateDashboard();
+                    } catch (error) {
+                        fileStatus.textContent = 'Fehler beim Parsen der JSON-Datei.';
+                        console.error('Error parsing JSON:', error);
+                    }
+                };
+                reader.onerror = function() {
+                    fileStatus.textContent = 'Fehler beim Lesen der Datei.';
+                };
+                reader.readAsText(file);
+            }
+        });
+
+        // Save to localStorage
+        saveToLocalStorage.addEventListener('click', function() {
+            if (Object.keys(userData).length > 0) {
+                localStorage.setItem('userStatsData', JSON.stringify(userData));
+                fileStatus.textContent = 'Daten erfolgreich gespeichert.';
+            } else {
+                fileStatus.textContent = 'Keine Daten zum Speichern vorhanden.';
+            }
+        });
+
+        // Show login screen
+        function showLogin() {
+            loginScreen.classList.remove('hidden');
+            dashboard.classList.add('hidden');
+        }
+
+        // Show dashboard
+        function showDashboard() {
+            loginScreen.classList.add('hidden');
+            dashboard.classList.remove('hidden');
+            updateDashboard();
+        }
+
+        // Update dashboard with current data
+        function updateDashboard() {
+            if (Object.keys(userData).length > 0) {
+                updateSummaryStats();
+                updateCharts();
+                applyFiltersAndUpdateTable();
+            }
+        }
+
+        // Update summary statistics
+        function updateSummaryStats() {
+            const totalUsers = Object.keys(userData).length;
+            const invitedByMainUser = Object.values(userData).filter(user => user.invited_by === '6235934346').length;
+            
+            let totalTickets = 0;
+            let totalJokers = 0;
+            
+            Object.values(userData).forEach(user => {
+                totalTickets += user.tickets || 0;
+                totalJokers += user.joker || 0;
+            });
+            
+            totalUsersElement.textContent = totalUsers;
+            invitesCountElement.textContent = invitedByMainUser;
+            availableTicketsElement.textContent = totalTickets + totalJokers;
+        }
+
+        // Update charts
+        function updateCharts() {
+            updateLanguageChart();
+            updateInvitesChart();
+        }
+
+        // Update language distribution chart
+        function updateLanguageChart() {
+            const languages = {};
+            
+            Object.values(userData).forEach(user => {
+                const lang = user.language || 'unknown';
+                languages[lang] = (languages[lang] || 0) + 1;
+            });
+            
+            const labels = Object.keys(languages);
+            const data = Object.values(languages);
+            
+            const ctx = document.getElementById('language-chart').getContext('2d');
+            
+            if (languageChart) {
+                languageChart.destroy();
+            }
+            
+            languageChart = new Chart(ctx, {
+                type: 'pie',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Sprachverteilung',
+                        data: data,
+                        backgroundColor: [
+                            'rgba(54, 162, 235, 0.6)',
+                            'rgba(255, 99, 132, 0.6)',
+                            'rgba(255, 206, 86, 0.6)',
+                            'rgba(75, 192, 192, 0.6)',
+                            'rgba(153, 102, 255, 0.6)'
+                        ],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false
+                }
+            });
+        }
+
+        // Update invites chart
+        function updateInvitesChart() {
+            const invitedUsers = {};
+            const notInvitedCount = Object.values(userData).filter(user => !user.invited_by).length;
+            
+            Object.values(userData).forEach(user => {
+                if (user.invited_by) {
+                    invitedUsers[user.invited_by] = (invitedUsers[user.invited_by] || 0) + 1;
+                }
+            });
+            
+            // Convert to arrays for chart
+            const inviterIds = Object.keys(invitedUsers).map(id => id.substring(0, 4) + '...');
+            const inviteCounts = Object.values(invitedUsers);
+            
+            // Add "Not Invited" category
+            inviterIds.push('Keine Einladung');
+            inviteCounts.push(notInvitedCount);
+            
+            const ctx = document.getElementById('invites-chart').getContext('2d');
+            
+            if (invitesChart) {
+                invitesChart.destroy();
+            }
+            
+            invitesChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: inviterIds,
+                    datasets: [{
+                        label: 'Anzahl der Einladungen',
+                        data: inviteCounts,
+                        backgroundColor: 'rgba(75, 192, 192, 0.6)',
+                        borderColor: 'rgba(75, 192, 192, 1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                stepSize: 1
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Apply filters and update table
+        function applyFiltersAndUpdateTable() {
+            const searchTerm = searchInput.value.toLowerCase();
+            const languageFilter = filterLanguage.value;
+            
+            filteredUsers = Object.entries(userData).filter(([userId, user]) => {
+                const matchesSearch = userId.toLowerCase().includes(searchTerm);
+                const matchesLanguage = languageFilter === 'all' || user.language === languageFilter;
+                
+                return matchesSearch && matchesLanguage;
+            });
+            
+            currentPage = 1;
+            updateTable();
+            updatePagination();
+        }
+
+        // Update user table
+        function updateTable() {
+            usersTableBody.innerHTML = '';
+            
+            const startIndex = (currentPage - 1) * itemsPerPage;
+            const endIndex = Math.min(startIndex + itemsPerPage, filteredUsers.length);
+            
+            for (let i = startIndex; i < endIndex; i++) {
+                const [userId, user] = filteredUsers[i];
+                
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${userId}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${user.language || '-'}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${user.joker || 0}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${user.tickets || 0}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${user.last_play || 'Noch nie'}</td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${user.invited_by || '-'}</td>
+                `;
+                
+                usersTableBody.appendChild(row);
+            }
+            
+            // Update pagination info
+            pageStart.textContent = filteredUsers.length > 0 ? startIndex + 1 : 0;
+            pageEnd.textContent = endIndex;
+            totalItems.textContent = filteredUsers.length;
+        }
+
+        // Update pagination controls
+        function updatePagination() {
+            const totalPages = Math.ceil(filteredUsers.length / itemsPerPage);
+            
+            // Enable/disable prev/next buttons
+            prevPageBtn.disabled = currentPage === 1;
+            nextPageBtn.disabled = currentPage === totalPages;
+            prevPageMobileBtn.disabled = currentPage === 1;
+            nextPageMobileBtn.disabled = currentPage === totalPages;
+            
+            // Update page numbers
+            paginationNumbers.innerHTML = '';
+            
+            // Limit the number of page buttons shown
+            const maxPageButtons = 5;
+            let startPage = Math.max(1, currentPage - Math.floor(maxPageButtons / 2));
+            let endPage = Math.min(totalPages, startPage + maxPageButtons - 1);
+            
+            if (endPage - startPage + 1 < maxPageButtons) {
+                startPage = Math.max(1, endPage - maxPageButtons + 1);
+            }
+            
+            for (let i = startPage; i <= endPage; i++) {
+                const pageButton = document.createElement('button');
+                pageButton.className = `relative inline-flex items-center px-4 py-2 border ${currentPage === i ? 'border-indigo-500 bg-indigo-50 text-indigo-600' : 'border-gray-300 bg-white text-gray-700'} text-sm font-medium hover:bg-gray-50`;
+                pageButton.textContent = i;
+                pageButton.addEventListener('click', () => {
+                    currentPage = i;
+                    updateTable();
+                    updatePagination();
+                });
+                
+                paginationNumbers.appendChild(pageButton);
+            }
+        }
+
+        // Search and filter event listeners
+        searchInput.addEventListener('input', applyFiltersAndUpdateTable);
+        filterLanguage.addEventListener('change', applyFiltersAndUpdateTable);
+        
+        // Pagination event listeners
+        prevPageBtn.addEventListener('click', function() {
+            if (currentPage > 1) {
+                currentPage--;
+                updateTable();
+                updatePagination();
+            }
+        });
+        
+        nextPageBtn.addEventListener('click', function() {
+            const totalPages = Math.ceil(filteredUsers.length / itemsPerPage);
+            if (currentPage < totalPages) {
+                currentPage++;
+                updateTable();
+                updatePagination();
+            }
+        });
+        
+        prevPageMobileBtn.addEventListener('click', function() {
+            if (currentPage > 1) {
+                currentPage--;
+                updateTable();
+                updatePagination();
+            }
+        });
+        
+        nextPageMobileBtn.addEventListener('click', function() {
+            const totalPages = Math.ceil(filteredUsers.length / itemsPerPage);
+            if (currentPage < totalPages) {
+                currentPage++;
+                updateTable();
+                updatePagination();
+            }
+        });
+    </script>
+</body>
+</html>
